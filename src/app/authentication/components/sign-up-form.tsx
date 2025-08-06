@@ -1,10 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { toast } from "sonner";
+import z from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,38 +24,30 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { authClient } from "@/lib/auth-client";
 
 const formSchema = z
   .object({
-    name: z.string("Nome é obrigatório").trim().min(1, "Nome é obrigatório"),
-    email: z.email("Email é obrigatório").min(1, "Email é obrigatório"),
-    password: z
-      .string()
-      .min(1, "Senha é obrigatória")
-      .min(8, "Senha deve ter pelo menos 8 caracteres"),
-    passwordConfirmation: z
-      .string()
-      .min(1, "Confirmação de senha é obrigatória")
-      .min(8, "Confirmação de senha deve ter pelo menos 8 caracteres"),
+    name: z.string("Nome inválido.").trim().min(1, "Nome é obrigatório."),
+    email: z.email("E-mail inválido."),
+    password: z.string("Senha inválida.").min(8, "Senha inválida."),
+    passwordConfirmation: z.string("Senha inválida.").min(8, "Senha inválida."),
   })
   .refine(
     (data) => {
       return data.password === data.passwordConfirmation;
     },
     {
-      error: "As senhas não conferem",
+      error: "As senhas não coincidem.",
       path: ["passwordConfirmation"],
     },
   );
 
-type FormSchema = z.infer<typeof formSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
-export const SignUpForm = () => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showPasswordConfirmation, setShowPasswordConfirmation] =
-    useState(false);
-
-  const form = useForm<FormSchema>({
+const SignUpForm = () => {
+  const router = useRouter();
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -65,22 +57,39 @@ export const SignUpForm = () => {
     },
   });
 
-  function onSubmit(values: FormSchema) {
-    console.log("Form submitted");
-    console.log(values);
+  async function onSubmit(values: FormValues) {
+    await authClient.signUp.email({
+      name: values.name,
+      email: values.email,
+      password: values.password,
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/");
+        },
+        onError: (error) => {
+          if (error.error.code === "USER_ALREADY_EXISTS") {
+            toast.error("E-mail já cadastrado.");
+            return form.setError("email", {
+              message: "E-mail já cadastrado.",
+            });
+          }
+          toast.error(error.error.message);
+        },
+      },
+    });
   }
 
   return (
     <>
-      <Card>
+      <Card className="w-full">
         <CardHeader>
-          <CardTitle>Entrar</CardTitle>
-          <CardDescription>Faça login para continuar</CardDescription>
+          <CardTitle>Criar conta</CardTitle>
+          <CardDescription>Crie uma conta para continuar.</CardDescription>
         </CardHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <CardContent className="grid gap-4">
+            <CardContent className="grid w-full gap-6">
               <FormField
                 control={form.control}
                 name="name"
@@ -101,11 +110,7 @@ export const SignUpForm = () => {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Digite seu email"
-                        type="email"
-                        {...field}
-                      />
+                      <Input placeholder="Digite seu email" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -116,28 +121,13 @@ export const SignUpForm = () => {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>Senha</FormLabel>
                     <FormControl>
-                      <div className="relative">
-                        <Input
-                          placeholder="Digite sua senha"
-                          type={showPassword ? "text" : "password"}
-                          {...field}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
+                      <Input
+                        placeholder="Digite sua senha"
+                        type="password"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -148,32 +138,13 @@ export const SignUpForm = () => {
                 name="passwordConfirmation"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Confirmar Password</FormLabel>
+                    <FormLabel>Confirmar senha</FormLabel>
                     <FormControl>
-                      <div className="relative">
-                        <Input
-                          placeholder="Confirme sua senha"
-                          type={showPasswordConfirmation ? "text" : "password"}
-                          {...field}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() =>
-                            setShowPasswordConfirmation(
-                              !showPasswordConfirmation,
-                            )
-                          }
-                        >
-                          {showPasswordConfirmation ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
+                      <Input
+                        placeholder="Digite a sua senha novamente"
+                        type="password"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -181,9 +152,7 @@ export const SignUpForm = () => {
               />
             </CardContent>
             <CardFooter>
-              <Button type="submit" className="w-full">
-                Criar conta
-              </Button>
+              <Button type="submit">Criar conta</Button>
             </CardFooter>
           </form>
         </Form>
@@ -191,3 +160,5 @@ export const SignUpForm = () => {
     </>
   );
 };
+
+export default SignUpForm;

@@ -1,7 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { SignInForm } from "./components/sign-in-form";
-import { SignUpForm } from "./components/sign-up-form";
+import SignInForm from "./components/sign-in-form";
+import SignUpForm from "./components/sign-up-form";
 
 export default function AuthPage() {
   return (
